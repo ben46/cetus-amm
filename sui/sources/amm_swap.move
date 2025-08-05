@@ -20,12 +20,15 @@ module cetus_amm::amm_swap {
     const EPoolInvalid: u64 = 4;
     const EAMOUNTINCORRECT: u64 = 5;
 
+    // 定义admin权限
     struct AdminCap has key {
         id: UID,
     }
 
     struct PoolLiquidityCoin<phantom CoinTypeA, phantom CoinTypeB> has drop{}
 
+    // phantom是用在类型检查的, 和泛型一起使用
+    // 如果不加phantom, 那么CoinTypeA和CoinTypeB会被认为是具体的类型, 这样就不能在Pool中使用泛型了.
     struct Pool<phantom CoinTypeA, phantom CoinTypeB> has key {
         id: UID,
 
@@ -43,6 +46,7 @@ module cetus_amm::amm_swap {
         protocol_fee_denominator: u64,
     }
 
+    // 定义初始化事件
     struct InitEvent has copy, drop {
         sender: address,
         global_paulse_status_id: ID
@@ -98,6 +102,8 @@ module cetus_amm::amm_swap {
         protocol_fee_amount: u64,
     }
 
+    // 初始化packge, 这个没有相关的入口函数, 因为不是给用户调用的.
+    // 疑问: 如果初始化的时候, 想要传入一些参数怎么办?
     fun init(ctx: &mut TxContext) {
         transfer::transfer(
             AdminCap{

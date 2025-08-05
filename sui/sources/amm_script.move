@@ -1,3 +1,4 @@
+// 定义了入口
 module cetus_amm::amm_script {
     use cetus_amm::amm_swap::{Pool,PoolLiquidityCoin, AdminCap};
     use cetus_amm::amm_config::{GlobalPauseStatus};

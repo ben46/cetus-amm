@@ -7,21 +7,25 @@ module cetus_amm::amm_config {
     use sui::event;
     use sui::transfer;
 
+    // 常量
     const EPoolPause: u64 = 1;
 
+    // 全局状态
     struct GlobalPauseStatus has key {
         id: UID,
         pause: bool,
     }
 
+    // 定义事件
     struct SetPauseEvent has copy, drop {
         sender: address,
         status: bool
     }
 
+    // 初始化全局暂停状态, 在初始化的时候被调用
     public(friend) fun new_global_pause_status_and_shared(ctx: &mut TxContext): ID {
         let global_paulse_status = GlobalPauseStatus {
-            id: object::new(ctx),
+            id: object::new(ctx),// 新分配一个ID
             pause: false
         };
 
@@ -34,6 +38,7 @@ module cetus_amm::amm_config {
         global_pause_status.pause
     }
 
+    // 被amm_router和amm_swap调用, 只有部署者才能修改全局暂停状态
     public(friend) fun set_status_and_emit_event(global_pause_status: &mut GlobalPauseStatus, status: bool, ctx: &mut TxContext) {
         global_pause_status.pause = status;
 
