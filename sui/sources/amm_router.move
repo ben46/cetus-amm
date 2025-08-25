@@ -421,7 +421,7 @@ module cetus_amm::amm_router {
         ctx: &mut TxContext
     ) {
         if(balance::value(&balance) > 0) {
-            transfer::transfer(coin::from_balance(balance , ctx), tx_context::sender(ctx));
+            transfer::public_transfer(coin::from_balance(balance , ctx), tx_context::sender(ctx));
         } else {
             balance::destroy_zero(balance);
         }
