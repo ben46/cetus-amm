@@ -16,12 +16,25 @@ export const CONTRACT_CONFIG = {
   rpc: "https://fullnode.testnet.sui.io:443"
 };
 
+// Mock coins (USDC/USDT) package and admin shared objects
+// TODO: After publishing `sui/mock-coins`, replace the placeholders below.
+export const MOCK_COINS = {
+  // The package ID returned by `sui client publish` for `sui/mock-coins`
+  packageId: "0xYOUR_MOCK_COINS_PACKAGE_ID",
+
+  // Shared Admin object IDs created on publish (one for each coin)
+  usdcAdminId: "0xUSDC_ADMIN_SHARED_OBJECT_ID",
+  usdtAdminId: "0xUSDT_ADMIN_SHARED_OBJECT_ID",
+
+  // Default faucet amount (6 decimals => 1,000 tokens)
+  defaultFaucetAmount: 1_000_000_000
+};
+
 export const COMMON_COIN_TYPES = {
   SUI: "0x2::sui::SUI",
-  // Using example test token addresses for demonstration
-  // In production, these should be actual deployed token contract addresses
-  USDC: "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
-  USDT: "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdt::USDT"
+  // These resolve to the freshly published mock coins when `MOCK_COINS.packageId` is set
+  USDC: `${MOCK_COINS.packageId}::usdc::USDC`,
+  USDT: `${MOCK_COINS.packageId}::usdt::USDT`
 };
 
 // Demo balances for testing (simulated token balances)
