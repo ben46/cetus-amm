@@ -1,6 +1,5 @@
 <script>
-  import { createEventDispatcher } from 'svelte';
-  import { Ed25519Keypair } from '@mysten/sui.js/keypairs/ed25519';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { getUserBalance } from '../lib/queries.js';
   import { COMMON_COIN_TYPES } from '../lib/config.js';
 
@@ -11,40 +10,139 @@
   let connecting = false;
   let error = '';
   let userBalances = {};
+  let availableWallets = [];
 
-  // Simulate wallet connection (in a real app, you'd use @mysten/wallet-kit)
-  async function connectWallet() {
+  onMount(async () => {
+    // Check if we're in browser environment
+    if (typeof window !== 'undefined') {
+      // Check for available wallets
+      checkAvailableWallets();
+    }
+  });
+
+  function checkAvailableWallets() {
+    const wallets = [];
+    
+    // Check for Sui Wallet
+    if (typeof window !== 'undefined' && window.suiWallet) {
+      wallets.push({
+        name: 'Sui Wallet',
+        icon: '🦄',
+        adapter: window.suiWallet
+      });
+    }
+
+    // Check for Suiet Wallet
+    if (typeof window !== 'undefined' && window.suiet) {
+      wallets.push({
+        name: 'Suiet',
+        icon: '🔵',
+        adapter: window.suiet
+      });
+    }
+
+    // Check for Ethos Wallet
+    if (typeof window !== 'undefined' && window.ethosWallet) {
+      wallets.push({
+        name: 'Ethos Wallet',
+        icon: '⚡',
+        adapter: window.ethosWallet
+      });
+    }
+
+    // Check for Martian Wallet
+    if (typeof window !== 'undefined' && window.martianWallet) {
+      wallets.push({
+        name: 'Martian Wallet',
+        icon: '🚀',
+        adapter: window.martianWallet
+      });
+    }
+
+    availableWallets = wallets;
+
+    // If no wallets found, add demo wallet for testing
+    if (wallets.length === 0) {
+      availableWallets = [{
+        name: 'Demo Wallet (for testing)',
+        icon: '🔧',
+        adapter: null
+      }];
+    }
+  }
+
+  async function handleConnectWallet(walletInfo) {
     connecting = true;
     error = '';
 
     try {
-      // In a real application, this would integrate with actual wallet providers
-      // For demo purposes, we'll create a keypair
-      const keypair = Ed25519Keypair.generate();
-      const address = keypair.getPublicKey().toSuiAddress();
+      if (!walletInfo.adapter) {
+        // Demo wallet fallback
+        const { Ed25519Keypair } = await import('@mysten/sui.js/keypairs/ed25519');
+        const keypair = Ed25519Keypair.generate();
+        const address = keypair.getPublicKey().toSuiAddress();
 
-      const newWallet = {
-        address,
-        signer: keypair,
-        connected: true,
-        provider: 'Demo Wallet'
-      };
+        const newWallet = {
+          address,
+          signer: keypair,
+          connected: true,
+          provider: 'Demo Wallet'
+        };
 
-      wallet = newWallet;
-      dispatch('walletConnected', wallet);
+        wallet = newWallet;
+        dispatch('walletConnected', wallet);
+        await loadUserBalances();
+        return;
+      }
 
-      // Load user balances
-      await loadUserBalances();
+      // Try to connect to real wallet
+      const adapter = walletInfo.adapter;
+      
+      // Request connection
+      const response = await adapter.connect();
+      
+      if (response && response.accounts && response.accounts.length > 0) {
+        const account = response.accounts[0];
+        
+        const newWallet = {
+          address: account.address,
+          signer: adapter,
+          connected: true,
+          provider: walletInfo.name,
+          publicKey: account.publicKey
+        };
 
+        wallet = newWallet;
+        dispatch('walletConnected', wallet);
+        await loadUserBalances();
+      } else {
+        throw new Error('No accounts returned from wallet');
+      }
+      
     } catch (err) {
-      error = `Failed to connect wallet: ${err.message}`;
       console.error('Wallet connection error:', err);
+      
+      if (err.message.includes('rejected') || err.message.includes('denied')) {
+        error = 'Connection rejected by user';
+      } else if (err.message.includes('not found') || err.message.includes('not installed')) {
+        error = `${walletInfo.name} is not installed. Please install it first.`;
+      } else {
+        error = `Failed to connect ${walletInfo.name}: ${err.message}`;
+      }
     } finally {
       connecting = false;
     }
   }
 
-  async function disconnectWallet() {
+  async function handleDisconnectWallet() {
+    try {
+      if (wallet && wallet.signer && wallet.signer.disconnect) {
+        await wallet.signer.disconnect();
+      }
+    } catch (err) {
+      console.error('Disconnect error:', err);
+    }
+    
     wallet = null;
     userBalances = {};
     dispatch('walletDisconnected');
@@ -89,7 +187,7 @@
           <div class="status-indicator connected"></div>
           <span class="provider-name">{wallet.provider}</span>
         </div>
-        <button on:click={disconnectWallet} class="disconnect-btn">
+        <button on:click={handleDisconnectWallet} class="disconnect-btn">
           Disconnect
         </button>
       </div>
@@ -126,30 +224,47 @@
   {:else}
     <div class="connect-section">
       <h3>Connect Wallet</h3>
-      <p>Connect your wallet to start trading on Cetus AMM</p>
+      <p>Connect your wallet to start trading on ApexYield AMM</p>
       
       {#if error}
         <div class="error">{error}</div>
       {/if}
 
-      <button 
-        on:click={connectWallet}
-        disabled={connecting}
-        class="primary-button connect-btn"
-      >
-        {connecting ? 'Connecting...' : 'Connect Demo Wallet'}
-      </button>
-
       <div class="wallet-options">
-        <p class="note">
-          In a production app, you would see options for:
-        </p>
-        <ul class="wallet-list">
-          <li>Sui Wallet</li>
-          <li>Suiet Wallet</li>
-          <li>Ethos Wallet</li>
-          <li>Other Sui-compatible wallets</li>
-        </ul>
+        <div class="wallet-grid">
+          {#each availableWallets as walletInfo}
+            <button 
+              on:click={() => handleConnectWallet(walletInfo)}
+              disabled={connecting}
+              class="wallet-button"
+            >
+              <div class="wallet-icon">{walletInfo.icon}</div>
+              <span>{walletInfo.name}</span>
+            </button>
+          {/each}
+        </div>
+
+        {#if connecting}
+          <div class="connecting-message">
+            <div class="spinner"></div>
+            <span>Connecting to wallet...</span>
+          </div>
+        {/if}
+
+        <div class="wallet-note">
+          <p>
+            {#if availableWallets.length === 1 && availableWallets[0].name.includes('Demo')}
+              No Sui wallets detected. Install one of the supported wallets for real functionality.
+            {:else}
+              Don't have a wallet? Install one of the supported wallets above.
+            {/if}
+          </p>
+          <div class="wallet-links">
+            <a href="https://chrome.google.com/webstore/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil" target="_blank">Sui Wallet</a>
+            <a href="https://chrome.google.com/webstore/detail/suiet-sui-wallet/khpkpbbcccdmmclmpigdgddabeilkdpd" target="_blank">Suiet</a>
+            <a href="https://chrome.google.com/webstore/detail/ethos-sui-wallet/mcbigmjiafegjnnogedioegffbooigli" target="_blank">Ethos</a>
+          </div>
+        </div>
       </div>
     </div>
   {/if}
@@ -305,33 +420,115 @@
     margin-bottom: 24px;
   }
 
-  .connect-btn {
-    margin-bottom: 24px;
-    min-width: 200px;
+  .wallet-options {
+    text-align: center;
   }
 
-  .wallet-options {
-    padding: 20px;
+  .wallet-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .wallet-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 20px 16px;
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2d3748;
+  }
+
+  .wallet-button:hover:not(:disabled) {
+    border-color: #667eea;
+    background: #f7fafc;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  }
+
+  .wallet-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .wallet-icon {
+    font-size: 24px;
+  }
+
+  .connecting-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 16px 0;
+    color: #667eea;
+    font-weight: 500;
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e2e8f0;
+    border-top: 2px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .wallet-note {
+    padding: 16px;
     background: #f7fafc;
     border-radius: 8px;
+    border-left: 4px solid #667eea;
     text-align: left;
   }
 
-  .note {
-    color: #718096;
-    font-size: 14px;
-    margin-bottom: 12px;
-  }
-
-  .wallet-list {
-    margin: 0;
-    padding-left: 20px;
-  }
-
-  .wallet-list li {
+  .wallet-note p {
+    margin: 0 0 12px 0;
     color: #4a5568;
-    margin-bottom: 4px;
     font-size: 14px;
+  }
+
+  .wallet-links {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .wallet-links a {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    background: white;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  .wallet-links a:hover {
+    background: #e2e8f0;
+  }
+
+  .error {
+    background: #fed7d7;
+    color: #e53e3e;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border-left: 4px solid #e53e3e;
   }
 
   @media (max-width: 768px) {
@@ -353,6 +550,19 @@
 
     .balances-grid {
       grid-template-columns: 1fr;
+    }
+
+    .wallet-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .wallet-button {
+      padding: 16px 12px;
+    }
+
+    .wallet-links {
+      justify-content: center;
     }
   }
 </style>
