@@ -1,7 +1,8 @@
 <script>
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { getUserBalance } from '../lib/queries.js';
-  import { COMMON_COIN_TYPES } from '../lib/config.js';
+  import { COMMON_COIN_TYPES, DEMO_TOKEN_BALANCES, MOCK_COINS } from '../lib/config.js';
+  import { registerAndFaucetBoth } from '../lib/mockCoins.js';
 
   const dispatch = createEventDispatcher();
 
@@ -11,6 +12,10 @@
   let error = '';
   let userBalances = {};
   let availableWallets = [];
+  let minting = false;
+  let mintMessage = '';
+  let chainMinting = false;
+  let chainMintMessage = '';
 
   onMount(async () => {
     // Check if we're in browser environment
@@ -263,6 +268,75 @@
     }
   }
 
+  async function freeMintTestTokens() {
+    if (!wallet) {
+      error = 'Please connect a wallet first';
+      return;
+    }
+
+    mintMessage = '';
+    minting = true;
+    try {
+      const address = wallet.address;
+
+      // Initialize or update demo balances in memory
+      if (!DEMO_TOKEN_BALANCES[address]) {
+        DEMO_TOKEN_BALANCES[address] = { SUI: 0, USDC: 0, USDT: 0 };
+      }
+
+      // Credit demo amounts: 1000 USDC and 500 USDT (assuming 6 decimals)
+      const addUsdc = 1_000_000_000; // 1000 * 1e6
+      const addUsdt =   500_000_000; //  500 * 1e6
+
+      DEMO_TOKEN_BALANCES[address].USDC = (DEMO_TOKEN_BALANCES[address].USDC || 0) + addUsdc;
+      DEMO_TOKEN_BALANCES[address].USDT = (DEMO_TOKEN_BALANCES[address].USDT || 0) + addUsdt;
+
+      await loadUserBalances();
+      mintMessage = 'Minted 1000 USDC and 500 USDT to your demo balance.';
+    } catch (e) {
+      console.error('Free mint failed:', e);
+      error = `Free mint failed: ${e.message || e}`;
+    } finally {
+      minting = false;
+      // Clear success message after a short delay
+      setTimeout(() => { mintMessage = ''; }, 4000);
+    }
+  }
+
+  async function onChainRegisterAndFaucet() {
+    if (!wallet) {
+      error = 'Please connect a wallet first';
+      return;
+    }
+    // Validate config filled
+    const placeholders = [MOCK_COINS.packageId, MOCK_COINS.usdcAdminId, MOCK_COINS.usdtAdminId];
+    if (placeholders.some((v) => !v || v.includes('YOUR_MOCK_COINS_PACKAGE_ID') || v.includes('ADMIN_SHARED_OBJECT_ID'))) {
+      error = 'Please set MOCK_COINS packageId/usdcAdminId/usdtAdminId in config.js';
+      return;
+    }
+    // Validate signer supports transaction execution
+    const signer = wallet.signer;
+    const canSign = signer && (typeof signer.signAndExecuteTransactionBlock === 'function' || typeof signer.signAndExecuteTransaction === 'function');
+    if (!canSign) {
+      error = 'Connected wallet does not support programmatic signing here. Use the CLI or a supported adapter.';
+      return;
+    }
+
+    chainMintMessage = '';
+    chainMinting = true;
+    try {
+      await registerAndFaucetBoth(undefined, undefined, signer);
+      await loadUserBalances();
+      chainMintMessage = 'On-chain: Registered and requested faucet for USDC & USDT.';
+    } catch (e) {
+      console.error('On-chain register/faucet failed:', e);
+      error = `On-chain register/faucet failed: ${e.message || e}`;
+    } finally {
+      chainMinting = false;
+      setTimeout(() => { chainMintMessage = ''; }, 5000);
+    }
+  }
+
   function formatAddress(address) {
     if (!address) return '';
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -309,9 +383,23 @@
               </div>
             {/each}
           </div>
-          <button on:click={loadUserBalances} class="refresh-btn">
-            Refresh Balances
-          </button>
+          <div class="balances-actions">
+            <button on:click={loadUserBalances} class="refresh-btn">
+              Refresh Balances
+            </button>
+            <button on:click={freeMintTestTokens} class="mint-btn" disabled={minting} title="Add demo USDC/USDT to this wallet">
+              {minting ? 'Minting…' : '🪙 Free Mint USDC/USDT'}
+            </button>
+            <button on:click={onChainRegisterAndFaucet} class="mint-btn secondary" disabled={chainMinting} title="Register coin types and faucet on-chain">
+              {chainMinting ? 'Working…' : '⛓️ Register + Faucet (on-chain)'}
+            </button>
+          </div>
+          {#if mintMessage}
+            <div class="mint-success">{mintMessage}</div>
+          {/if}
+          {#if chainMintMessage}
+            <div class="mint-success">{chainMintMessage}</div>
+          {/if}
         </div>
       </div>
     </div>
@@ -499,6 +587,43 @@
 
   .refresh-btn:hover {
     background: #5a67d8;
+  }
+
+  .balances-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .mint-btn {
+    background: #38a169;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s ease;
+  }
+
+  .mint-btn[disabled] {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .mint-btn:hover:not([disabled]) {
+    background: #2f855a;
+  }
+
+  .mint-success {
+    margin-top: 10px;
+    color: #2f855a;
+    background: #f0fff4;
+    border: 1px solid #c6f6d5;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
   }
 
   .connect-section {

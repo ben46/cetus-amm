@@ -33,7 +33,8 @@ frontend/
 │   │   ├── WalletConnection.svelte
 │   │   └── TransactionMonitor.svelte
 │   ├── lib/               # Utility libraries
-│   │   ├── config.js      # Contract configuration
+│   │   ├── config.js      # Contract configuration (incl. MOCK_COINS)
+│   │   ├── mockCoins.js   # Helpers: register + faucet mock USDC/USDT
 │   │   ├── suiClient.js   # Sui client setup
 │   │   ├── ammFunctions.js # AMM interaction functions
 │   │   └── queries.js     # Query utilities
@@ -88,6 +89,12 @@ export const CONTRACT_CONFIG = {
 
 2. **Installation**: If no wallets are detected, installation links are provided
 3. **Demo Fallback**: When no real wallets are available, a demo wallet option is shown for testing
+
+### Mock Coins (USDC/USDT)
+
+- Set `MOCK_COINS.packageId`, `usdcAdminId`, and `usdtAdminId` in `src/lib/config.js` after publishing `sui/mock-coins`.
+- Use `register-and-faucet.js` or in-app flows to register coin types and mint faucet amounts to the connected wallet.
+- Default faucet amount is `1_000_000_000` (1,000 tokens with 6 decimals).
 
 ### Token Swapping
 
