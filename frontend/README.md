@@ -79,8 +79,15 @@ export const CONTRACT_CONFIG = {
 
 ### Connecting a Wallet
 
-1. Click "Connect Demo Wallet" to simulate wallet connection
-2. In production, this would integrate with actual Sui wallet providers
+1. **Real Wallet Support**: The app now supports real Sui wallets including:
+   - Sui Wallet 🦄
+   - Suiet 🔵
+   - Ethos Wallet ⚡
+   - Martian Wallet 🚀
+   - OKX Wallet ⚫
+
+2. **Installation**: If no wallets are detected, installation links are provided
+3. **Demo Fallback**: When no real wallets are available, a demo wallet option is shown for testing
 
 ### Token Swapping
 

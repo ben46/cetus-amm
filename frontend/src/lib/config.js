@@ -18,8 +18,19 @@ export const CONTRACT_CONFIG = {
 
 export const COMMON_COIN_TYPES = {
   SUI: "0x2::sui::SUI",
-  USDC: "0x123::usdc::USDC", // Example address
-  USDT: "0x456::usdt::USDT"  // Example address
+  // Using example test token addresses for demonstration
+  // In production, these should be actual deployed token contract addresses
+  USDC: "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdc::USDC",
+  USDT: "0xa1ec7fc00a6f40db9693ad1415d0c193ad3906494428cf252621037bd7117e29::usdt::USDT"
+};
+
+// Demo balances for testing (simulated token balances)
+export const DEMO_TOKEN_BALANCES = {
+  "0xa8ebd1245d9e510d6f3fda744292bcf6084833379ade79cc992e1e0911178541": {
+    SUI: 10000000000,    // 10 SUI
+    USDC: 1000000000,    // 1000 USDC (assuming 6 decimals, this would be 1000 tokens)
+    USDT: 500000000      // 500 USDT (assuming 6 decimals, this would be 500 tokens)
+  }
 };
 
 export const DEFAULT_SLIPPAGE_TOLERANCE = 1; // 1%

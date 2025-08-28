@@ -1,4 +1,5 @@
 import { suiClient } from './suiClient.js';
+import { DEMO_TOKEN_BALANCES, COMMON_COIN_TYPES } from './config.js';
 
 /**
  * Get pool information
@@ -92,6 +93,26 @@ export async function getSwapQuote(poolId, amountIn, swapAForB = true) {
  */
 export async function getUserBalance(userAddress, coinType) {
   try {
+    // Check if we have demo balances for this address
+    if (DEMO_TOKEN_BALANCES[userAddress]) {
+      // Find the token symbol from COMMON_COIN_TYPES
+      const tokenSymbol = Object.keys(COMMON_COIN_TYPES).find(
+        symbol => COMMON_COIN_TYPES[symbol] === coinType
+      );
+      
+      if (tokenSymbol && DEMO_TOKEN_BALANCES[userAddress][tokenSymbol] !== undefined) {
+        const demoBalance = DEMO_TOKEN_BALANCES[userAddress][tokenSymbol];
+        console.log(`🎮 Using demo balance for ${tokenSymbol}: ${demoBalance}`);
+        
+        return {
+          totalBalance: demoBalance,
+          coinCount: demoBalance > 0 ? 1 : 0,
+          coins: demoBalance > 0 ? [{ balance: demoBalance.toString() }] : []
+        };
+      }
+    }
+
+    // Fallback to real blockchain query
     const coins = await suiClient.getCoins({
       owner: userAddress,
       coinType: coinType
@@ -109,7 +130,13 @@ export async function getUserBalance(userAddress, coinType) {
     
   } catch (error) {
     console.error('Get balance failed:', error);
-    throw error;
+    
+    // If blockchain query fails, return 0 balance
+    return {
+      totalBalance: 0,
+      coinCount: 0,
+      coins: []
+    };
   }
 }
 
