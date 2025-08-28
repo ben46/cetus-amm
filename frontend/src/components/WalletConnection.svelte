@@ -59,6 +59,15 @@
       });
     }
 
+    // Check for OKX Wallet
+    if (typeof window !== 'undefined' && window.okxwallet && window.okxwallet.sui) {
+      wallets.push({
+        name: 'OKX Wallet',
+        icon: '⚫',
+        adapter: window.okxwallet.sui
+      });
+    }
+
     availableWallets = wallets;
 
     // If no wallets found, add demo wallet for testing
@@ -97,26 +106,49 @@
 
       // Try to connect to real wallet
       const adapter = walletInfo.adapter;
+      let response;
       
-      // Request connection
-      const response = await adapter.connect();
-      
-      if (response && response.accounts && response.accounts.length > 0) {
-        const account = response.accounts[0];
+      // Handle different wallet connection patterns
+      if (walletInfo.name === 'OKX Wallet') {
+        // OKX Wallet has a different API structure
+        response = await adapter.connect();
         
-        const newWallet = {
-          address: account.address,
-          signer: adapter,
-          connected: true,
-          provider: walletInfo.name,
-          publicKey: account.publicKey
-        };
+        if (response && response.address) {
+          const newWallet = {
+            address: response.address,
+            signer: adapter,
+            connected: true,
+            provider: walletInfo.name,
+            publicKey: response.publicKey
+          };
 
-        wallet = newWallet;
-        dispatch('walletConnected', wallet);
-        await loadUserBalances();
+          wallet = newWallet;
+          dispatch('walletConnected', wallet);
+          await loadUserBalances();
+        } else {
+          throw new Error('No account returned from OKX Wallet');
+        }
       } else {
-        throw new Error('No accounts returned from wallet');
+        // Standard wallet connection for other wallets
+        response = await adapter.connect();
+        
+        if (response && response.accounts && response.accounts.length > 0) {
+          const account = response.accounts[0];
+          
+          const newWallet = {
+            address: account.address,
+            signer: adapter,
+            connected: true,
+            provider: walletInfo.name,
+            publicKey: account.publicKey
+          };
+
+          wallet = newWallet;
+          dispatch('walletConnected', wallet);
+          await loadUserBalances();
+        } else {
+          throw new Error('No accounts returned from wallet');
+        }
       }
       
     } catch (err) {
@@ -263,6 +295,7 @@
             <a href="https://chrome.google.com/webstore/detail/sui-wallet/opcgpfmipidbgpenhmajoajpbobppdil" target="_blank">Sui Wallet</a>
             <a href="https://chrome.google.com/webstore/detail/suiet-sui-wallet/khpkpbbcccdmmclmpigdgddabeilkdpd" target="_blank">Suiet</a>
             <a href="https://chrome.google.com/webstore/detail/ethos-sui-wallet/mcbigmjiafegjnnogedioegffbooigli" target="_blank">Ethos</a>
+            <a href="https://chrome.google.com/webstore/detail/okx-wallet/mcohilncbfahbmgdjkbpemcciiolgcge" target="_blank">OKX Wallet</a>
           </div>
         </div>
       </div>
@@ -426,9 +459,12 @@
 
   .wallet-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 12px;
     margin-bottom: 24px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .wallet-button {
