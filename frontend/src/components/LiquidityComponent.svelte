@@ -173,28 +173,38 @@
     </div>
   </div>
 
-  {#if selectedPool && poolInfo}
-    <div class="pool-stats">
-      <h3>Pool Statistics</h3>
-      <div class="stats-grid">
-        <div class="stat-item">
-          <span class="stat-label">Reserve A:</span>
-          <span class="stat-value">{(parseInt(poolInfo.reserveA) / 1e9).toLocaleString()}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">Reserve B:</span>
-          <span class="stat-value">{(parseInt(poolInfo.reserveB) / 1e9).toLocaleString()}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">Total Supply:</span>
-          <span class="stat-value">{(parseInt(poolInfo.totalSupply) / 1e9).toLocaleString()}</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-label">Fee Rate:</span>
-          <span class="stat-value">{poolInfo.feeRate / 100}%</span>
+  {#if selectedPool}
+    {#if poolInfo}
+      <div class="pool-stats">
+        <h3>Pool Statistics</h3>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-label">Reserve A:</span>
+            <span class="stat-value">{(parseInt(poolInfo.reserveA) / 1e9).toLocaleString()}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Reserve B:</span>
+            <span class="stat-value">{(parseInt(poolInfo.reserveB) / 1e9).toLocaleString()}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Total Supply:</span>
+            <span class="stat-value">{(parseInt(poolInfo.totalSupply) / 1e9).toLocaleString()}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Fee Rate:</span>
+            <span class="stat-value">{poolInfo.feeRate / 100}%</span>
+          </div>
         </div>
       </div>
-    </div>
+    {:else}
+      <div class="pool-stats">
+        <h3>Pool Statistics</h3>
+        <div class="stat-item">
+          <span class="stat-label">Status:</span>
+          <span class="stat-value">Loading or unavailable</span>
+        </div>
+      </div>
+    {/if}
 
     <div class="user-balances">
       <h3>Your Balances</h3>
