@@ -59,13 +59,24 @@
       });
     }
 
-    // Check for OKX Wallet
-    if (typeof window !== 'undefined' && window.okxwallet && window.okxwallet.sui) {
-      wallets.push({
-        name: 'OKX Wallet',
-        icon: '⚫',
-        adapter: window.okxwallet.sui
-      });
+    // Check for OKX Wallet - try different possible global variables
+    let okxAdapter = null;
+    if (typeof window !== 'undefined') {
+      if (window.okxwallet && window.okxwallet.sui) {
+        okxAdapter = window.okxwallet.sui;
+      } else if (window.okx && window.okx.sui) {
+        okxAdapter = window.okx.sui;
+      } else if (window.OKXWallet) {
+        okxAdapter = window.OKXWallet;
+      }
+      
+      if (okxAdapter) {
+        wallets.push({
+          name: 'OKX Wallet',
+          icon: '⚫',
+          adapter: okxAdapter
+        });
+      }
     }
 
     availableWallets = wallets;
@@ -110,23 +121,74 @@
       
       // Handle different wallet connection patterns
       if (walletInfo.name === 'OKX Wallet') {
-        // OKX Wallet has a different API structure
-        response = await adapter.connect();
+        // OKX Wallet connection - try different methods
+        console.log('OKX Wallet adapter available methods:', Object.getOwnPropertyNames(adapter));
+        let account = null;
         
-        if (response && response.address) {
+        try {
+          // Method 1: Try standard connect
+          response = await adapter.connect();
+          console.log('OKX Wallet connect response:', response);
+          
+          // Try different possible response structures for OKX
+          if (response && response.address) {
+            // Direct address in response
+            account = {
+              address: response.address,
+              publicKey: response.publicKey
+            };
+          } else if (response && response.accounts && response.accounts.length > 0) {
+            // Accounts array (similar to other wallets)
+            account = response.accounts[0];
+          } else if (response && Array.isArray(response) && response.length > 0) {
+            // Response is directly an array of accounts
+            account = response[0];
+          }
+        } catch (connectError) {
+          console.log('Standard connect failed, trying alternative methods:', connectError);
+        }
+        
+        // Method 2: Try getAccounts if connect didn't work
+        if (!account && adapter.getAccounts) {
+          try {
+            const accounts = await adapter.getAccounts();
+            console.log('OKX getAccounts response:', accounts);
+            if (accounts && accounts.length > 0) {
+              account = accounts[0];
+            }
+          } catch (getAccountsError) {
+            console.log('getAccounts failed:', getAccountsError);
+          }
+        }
+        
+        // Method 3: Try requestAccounts if available
+        if (!account && adapter.requestAccounts) {
+          try {
+            const accounts = await adapter.requestAccounts();
+            console.log('OKX requestAccounts response:', accounts);
+            if (accounts && accounts.length > 0) {
+              account = accounts[0];
+            }
+          } catch (requestAccountsError) {
+            console.log('requestAccounts failed:', requestAccountsError);
+          }
+        }
+        
+        if (account && account.address) {
           const newWallet = {
-            address: response.address,
+            address: account.address,
             signer: adapter,
             connected: true,
             provider: walletInfo.name,
-            publicKey: response.publicKey
+            publicKey: account.publicKey
           };
 
           wallet = newWallet;
           dispatch('walletConnected', wallet);
           await loadUserBalances();
         } else {
-          throw new Error('No account returned from OKX Wallet');
+          console.error('All OKX connection methods failed. Final state:', { response, account, adapter });
+          throw new Error('OKX Wallet connection failed. Please ensure the wallet is installed and unlocked.');
         }
       } else {
         // Standard wallet connection for other wallets
