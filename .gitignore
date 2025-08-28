@@ -1,3 +1,4 @@
-aptos/build/
-sui/build/
+aptos/
+sui/
 frontend/node_modules/
+frontend/public/build
